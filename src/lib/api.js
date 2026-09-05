@@ -6,6 +6,15 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
+// Demo mode is on whenever VITE_API_BASE_URL isn't set — in dev AND in a
+// deployed build. This is what was breaking sign-in after deployment: the
+// old check also required import.meta.env.DEV, which is false in a
+// production build, so the deployed app skipped the mock and tried to
+// fetch a real backend at localhost that doesn't exist there, throwing
+// "Failed to fetch". Once you set VITE_API_BASE_URL to your real API,
+// this flips off automatically and every call below hits your backend.
+export const DEMO_MODE = !import.meta.env.VITE_API_BASE_URL
+
 function getAccessToken() {
   return localStorage.getItem('si_access_token')
 }
@@ -28,16 +37,23 @@ export function clearTokens() {
 // Expected response shape: { access: string, refresh: string }
 export async function loginRequest(username, password) {
   // --- Mock implementation so the UI is usable before the backend exists ---
-  if (import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL) {
+  if (DEMO_MODE) {
     await new Promise((r) => setTimeout(r, 550))
     if (!username || !password) throw new Error('Username and password are required.')
     return { access: 'mock.jwt.access', refresh: 'mock.jwt.refresh' }
   }
-  const res = await fetch(`${BASE_URL}/token/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
+  let res
+  try {
+    res = await fetch(`${BASE_URL}/token/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+  } catch {
+    // fetch() itself throws (not a 4xx/5xx) when the request never reaches
+    // a server: wrong URL, CORS block, or the API is down/unreachable.
+    throw new Error(`Can't reach the API at ${BASE_URL}. Check VITE_API_BASE_URL and that the server is running.`)
+  }
   if (!res.ok) throw new Error('Invalid credentials.')
   return res.json()
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Lock, User, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { DEMO_MODE } from '../lib/api.js'
 import CircuitBackground from '../components/ui/CircuitBackground.jsx'
 import ChipFrame from '../components/ui/ChipFrame.jsx'
 
@@ -92,6 +93,9 @@ export default function Login() {
             </button>
 
             <p className="text-center font-mono text-[11px] text-ink-500">
+              {DEMO_MODE
+                ? 'Demo mode — any username/password signs in'
+                : 'JWT session · token issued by /api/token/'}
             </p>
           </form>
         </ChipFrame>
