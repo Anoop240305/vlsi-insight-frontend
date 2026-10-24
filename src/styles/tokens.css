@@ -1,0 +1,33 @@
+/* Colour tokens as "R G B" triples so Tailwind can add opacity.
+   Light is the default; data-theme="dark" is set before first paint
+   (index.html) and kept in sync by ThemeProvider. */
+:root {
+  --bg: 242 244 246;
+  --card: 255 255 255;
+  --rail: 255 255 255;
+  --ink: 28 36 48;
+  --muted: 97 112 128;
+  --line: 224 228 233;
+  --track: 233 237 241;
+  --accent: 31 111 120;
+  --accent-ink: 255 255 255;
+  --pass: 46 125 91;
+  --warn: 150 104 18;
+  --fail: 180 65 60;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --bg: 16 20 25;
+  --card: 24 29 35;
+  --rail: 20 24 30;
+  --ink: 227 231 235;
+  --muted: 146 160 173;
+  --line: 38 45 54;
+  --track: 38 45 54;
+  --accent: 107 186 195;
+  --accent-ink: 15 20 24;
+  --pass: 111 203 159;
+  --warn: 224 184 75;
+  --fail: 229 138 133;
+  color-scheme: dark;
+}

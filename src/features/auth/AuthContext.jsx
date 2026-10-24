@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { loginRequest, setTokens, clearTokens } from '../lib/api'
+import { loginRequest, setTokens, clearTokens } from '../../lib/api.js'
 
 const AuthContext = createContext(null)
 
@@ -14,7 +14,13 @@ export function AuthProvider({ children }) {
     // the first authenticated request (see apiFetch's 401 handling).
     const access = localStorage.getItem('si_access_token')
     const storedUser = localStorage.getItem('si_user')
-    if (access && storedUser) setUser(JSON.parse(storedUser))
+    if (access && storedUser) {
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch {
+        localStorage.removeItem('si_user')
+      }
+    }
   }, [])
 
   async function login(username, password) {
