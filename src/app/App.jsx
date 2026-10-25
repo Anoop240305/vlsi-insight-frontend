@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from '../theme/ThemeProvider.jsx'
 import { AuthProvider, ProtectedRoute } from '../features/auth/index.js'
 import DashboardLayout from '../components/layout/DashboardLayout.jsx'
+import { DesignDataProvider } from '../features/reports/useDashboardData.jsx'
 
 import Login from '../pages/Login.jsx'
 import Overview from '../pages/dashboard/Overview.jsx'
@@ -27,7 +28,9 @@ export default function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <DashboardLayout />
+                  <DesignDataProvider>
+                    <DashboardLayout />
+                  </DesignDataProvider>
                 </ProtectedRoute>
               }
             >

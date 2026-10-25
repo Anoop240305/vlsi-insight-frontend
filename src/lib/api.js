@@ -1,31 +1,13 @@
-// -----------------------------------------------------------------------------
-// Thin API client. Swap BASE_URL for your Django backend and wire up the two
-// TODOs below — everything else in the app calls through here, so that's the
-// only file that needs to change when you connect real endpoints.
-// -----------------------------------------------------------------------------
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/$/, '')
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-
-// Demo mode is on whenever VITE_API_BASE_URL isn't set — in dev AND in a
-// deployed build. This is what was breaking sign-in after deployment: the
-// old check also required import.meta.env.DEV, which is false in a
-// production build, so the deployed app skipped the mock and tried to
-// fetch a real backend at localhost that doesn't exist there, throwing
-// "Failed to fetch". Once you set VITE_API_BASE_URL to your real API,
-// this flips off automatically and every call below hits your backend.
 export const DEMO_MODE = !import.meta.env.VITE_API_BASE_URL
 
 function getAccessToken() {
   return localStorage.getItem('si_access_token')
 }
 
-function getRefreshToken() {
-  return localStorage.getItem('si_refresh_token')
-}
-
-export function setTokens({ access, refresh }) {
+export function setTokens({ access }) {
   if (access) localStorage.setItem('si_access_token', access)
-  if (refresh) localStorage.setItem('si_refresh_token', refresh)
 }
 
 export function clearTokens() {
@@ -33,69 +15,79 @@ export function clearTokens() {
   localStorage.removeItem('si_refresh_token')
 }
 
-// TODO: point this at your real login endpoint, e.g. POST /api/token/
-// Expected response shape: { access: string, refresh: string }
-export async function loginRequest(username, password) {
-  // --- Mock implementation so the UI is usable before the backend exists ---
+export async function loginRequest(username, password, email = '') {
   if (DEMO_MODE) {
-    await new Promise((r) => setTimeout(r, 550))
+    await new Promise((resolve) => setTimeout(resolve, 400))
     if (!username || !password) throw new Error('Username and password are required.')
-    return { access: 'mock.jwt.access', refresh: 'mock.jwt.refresh' }
+    return { access: 'mock.demo.token', user: { username, email, first_name: '', last_name: '' } }
   }
-  let res
+
+  let response
   try {
-    res = await fetch(`${BASE_URL}/token/`, {
+    response = await fetch(`${BASE_URL}/token/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, email }),
     })
   } catch {
-    // fetch() itself throws (not a 4xx/5xx) when the request never reaches
-    // a server: wrong URL, CORS block, or the API is down/unreachable.
-    throw new Error(`Can't reach the API at ${BASE_URL}. Check VITE_API_BASE_URL and that the server is running.`)
+    throw new Error(`Can't reach the API at ${BASE_URL}. Check VITE_API_BASE_URL and that Django is running.`)
   }
-  if (!res.ok) throw new Error('Invalid credentials.')
-  return res.json()
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.detail || 'Invalid username or password.')
+  return { access: body.token, user: body.user }
 }
 
-// TODO: point this at your refresh endpoint, e.g. POST /api/token/refresh/
-export async function refreshRequest() {
-  const refresh = getRefreshToken()
-  if (!refresh) throw new Error('No refresh token available.')
-  const res = await fetch(`${BASE_URL}/token/refresh/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh }),
-  })
-  if (!res.ok) throw new Error('Session expired.')
-  return res.json()
+export async function fetchProfile() {
+  return readResponse(await apiFetch('/profile/'))
 }
 
-// Generic authenticated fetch wrapper. Attaches the JWT and retries once
-// after a refresh if the access token has expired (401).
 export async function apiFetch(path, options = {}) {
-  const access = getAccessToken()
-  const doFetch = (token) =>
-    fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    })
-
-  let res = await doFetch(access)
-  if (res.status === 401) {
-    try {
-      const { access: newAccess, refresh } = await refreshRequest()
-      setTokens({ access: newAccess, refresh })
-      res = await doFetch(newAccess)
-    } catch {
-      clearTokens()
-      window.location.href = '/login'
-      throw new Error('Session expired, please sign in again.')
-    }
+  const token = getAccessToken()
+  const headers = { ...(options.headers || {}) }
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  if (!isFormData && options.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
   }
-  return res
+  if (token && !token.startsWith('mock.')) headers.Authorization = `Token ${token}`
+
+  let response
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  } catch {
+    throw new Error(`Can't reach the API at ${BASE_URL}. Check that Django is running and CORS is configured.`)
+  }
+
+  if (response.status === 401) {
+    clearTokens()
+    window.location.href = '/login'
+    throw new Error('Your session expired. Please sign in again.')
+  }
+  return response
+}
+
+async function readResponse(response) {
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const message = body.error || body.detail || 'The API request failed.'
+    throw new Error(message)
+  }
+  return body
+}
+
+export async function uploadReportFiles(files, projectId = null) {
+  if (DEMO_MODE) {
+    throw new Error('Configure VITE_API_BASE_URL to connect uploads to Django.')
+  }
+  const form = new FormData()
+  files.forEach((file) => form.append('files', file))
+  if (projectId) form.append('project_id', String(projectId))
+  return readResponse(await apiFetch('/reports/upload/', { method: 'POST', body: form }))
+}
+
+export async function fetchDashboard(projectId, runId) {
+  const query = new URLSearchParams()
+  if (projectId) query.set('project_id', projectId)
+  if (runId) query.set('run_id', runId)
+  const suffix = query.size ? `?${query.toString()}` : ''
+  return readResponse(await apiFetch(`/dashboard/${suffix}`))
 }

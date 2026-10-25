@@ -9,6 +9,7 @@ const SEVERITY = {
 }
 
 export default function AnomalyList({ items }) {
+  if (items.length === 0) return <Card><p className="text-sm text-muted">No anomaly results are available for the saved reports.</p></Card>
   return (
     <div className="space-y-3">
       {items.map((a) => {
