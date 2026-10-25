@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { loginRequest, setTokens, clearTokens } from '../../lib/api.js'
+import { loginRequest, fetchProfile, setTokens, clearTokens } from '../../lib/api.js'
 
 const AuthContext = createContext(null)
 
@@ -21,15 +21,21 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('si_user')
       }
     }
+    if (access && !access.startsWith('mock.')) {
+      fetchProfile().then((profile) => {
+        setUser(profile)
+        localStorage.setItem('si_user', JSON.stringify(profile))
+      }).catch(() => {})
+    }
   }, [])
 
-  async function login(username, password) {
+  async function login(username, password, email) {
     setStatus('authenticating')
     setError(null)
     try {
-      const { access, refresh } = await loginRequest(username, password)
-      setTokens({ access, refresh })
-      const nextUser = { username }
+      const { access, user: profile } = await loginRequest(username, password, email)
+      setTokens({ access })
+      const nextUser = profile || { username, email, first_name: '', last_name: '' }
       localStorage.setItem('si_user', JSON.stringify(nextUser))
       setUser(nextUser)
       setStatus('idle')

@@ -2,15 +2,15 @@ import React, { useState } from 'react'
 import { UploadCloud } from 'lucide-react'
 import Card from '../../components/ui/Card.jsx'
 
-export default function UploadDropzone({ onFiles }) {
+export default function UploadDropzone({ onFiles, disabled = false }) {
   const [dragOver, setDragOver] = useState(false)
 
   return (
     <Card>
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); onFiles(e.dataTransfer.files) }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!disabled) onFiles(e.dataTransfer.files) }}
         className={`flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-14 text-center transition-colors ${
           dragOver ? 'border-accent bg-accent/5' : 'border-line'
         }`}
@@ -22,9 +22,13 @@ export default function UploadDropzone({ onFiles }) {
           <input
             type="file"
             multiple
-            accept=".rpt,.txt"
+            accept=".rpt"
             className="sr-only"
-            onChange={(e) => e.target.files && onFiles(e.target.files)}
+            disabled={disabled}
+            onChange={(e) => {
+              if (e.target.files) onFiles(e.target.files)
+              e.target.value = ''
+            }}
           />
         </label>
         <p className="text-sm text-muted">timing.rpt, power.rpt, utilization.rpt</p>

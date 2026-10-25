@@ -8,6 +8,7 @@ const TAG = {
 }
 
 export default function InsightList({ items }) {
+  if (items.length === 0) return <Card><p className="text-sm text-muted">No AI insight results are available for the saved reports.</p></Card>
   return (
     <div className="space-y-3">
       {items.map((i) => (

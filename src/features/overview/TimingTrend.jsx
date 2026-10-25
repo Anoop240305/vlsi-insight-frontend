@@ -4,6 +4,11 @@ import Card from '../../components/ui/Card.jsx'
 import { chartColors, axisTick, tooltipProps } from '../../theme/chartTheme.js'
 
 export default function TimingTrend({ data }) {
+  if (data.length === 0) {
+    return <Card title="Timing trend across versions" hint="WNS and TNS values explicitly reported by Vivado">
+      <p className="text-sm text-muted">No constrained timing summary values are available for this design.</p>
+    </Card>
+  }
   return (
     <Card title="Timing trend across versions" hint="Worst and total negative slack, in ns">
       <div className="h-64">

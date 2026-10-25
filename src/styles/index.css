@@ -4,9 +4,40 @@
 
 @layer base {
   html, body { @apply bg-bg text-ink antialiased; }
+  html, body, #root { min-height: 100%; }
   body { font-feature-settings: 'tnum' 0; transition: background-color .25s, color .25s; }
   :focus-visible { @apply outline outline-2 outline-offset-2 outline-accent; }
   * { scrollbar-width: thin; scrollbar-color: rgb(var(--line)) transparent; }
+}
+
+@layer components {
+  .dashboard-shell {
+    @apply flex min-h-0 overflow-hidden bg-bg;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .dashboard-main {
+    @apply min-h-0 min-w-0 flex-1 overflow-y-auto;
+    overscroll-behavior: contain;
+  }
+
+  .dashboard-content {
+    @apply mx-auto w-full max-w-6xl min-w-0;
+  }
+
+  .dashboard-page {
+    @apply min-w-0 w-full space-y-4 sm:space-y-6;
+  }
+
+  .dashboard-page > *, .dashboard-page .recharts-responsive-container {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-page img, .dashboard-page svg {
+    max-width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

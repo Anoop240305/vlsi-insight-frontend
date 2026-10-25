@@ -1,16 +1,18 @@
 import React from 'react'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { InsightList } from '../../features/index.js'
-import { aiInsights } from '../../data/mockData.js'
+import { useDashboardData } from '../../features/reports/useDashboardData.jsx'
 
 export default function AIInsights() {
+  const { data, error } = useDashboardData()
   return (
-    <div className="space-y-6">
+    <div className="dashboard-page">
       <PageHeader
         title="AI insights"
-        description="Plain-English summaries from the Qwen / LLaMA layer, with the exact report line behind each one."
+        description="AI summaries are shown only when an analysis service has generated them from saved reports."
       />
-      <InsightList items={aiInsights} />
+      {error && <p role="alert" className="rounded-md bg-warn/10 px-4 py-3 text-sm text-warn">{error}</p>}
+      <InsightList items={data.is_demo ? data.ai_insights || [] : []} />
     </div>
   )
 }

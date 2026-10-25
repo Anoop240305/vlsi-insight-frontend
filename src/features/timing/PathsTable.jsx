@@ -12,7 +12,7 @@ const TH = 'py-2 pr-4 text-left text-sm font-medium text-muted'
 
 export default function PathsTable({ paths }) {
   return (
-    <Card title="Critical path list" hint="From timing.rpt">
+    <Card title="Critical path list">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
@@ -33,7 +33,7 @@ export default function PathsTable({ paths }) {
                 <td className="py-2.5 pr-4 font-mono text-[13px] text-ink">{p.endpoint}</td>
                 <td className="py-2.5 pr-4 text-muted">{p.group}</td>
                 <td className={`py-2.5 pr-4 text-right tabular-nums ${p.slackNs < 0 ? 'text-fail' : 'text-ink'}`}>
-                  {p.slackNs < 0 ? '−' : ''}{Math.abs(p.slackNs).toFixed(3)} ns
+                  {p.slackNs < 0 ? '−' : ''}{Math.abs(p.slackNs).toFixed(4)} ns
                 </td>
                 <td className="py-2.5 pl-4"><StatusPill status={slackStatus(p.slackNs)} /></td>
               </tr>

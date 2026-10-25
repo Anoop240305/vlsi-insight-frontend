@@ -1,32 +1,78 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { uploadReportFiles } from '../../lib/api.js'
 
-// TODO: replace the simulated progress below with a real upload to your Django
-// endpoint, e.g. POST /api/reports/upload/ (multipart/form-data), then poll
-// /api/reports/{id}/status/ for parser progress. Keep the returned shape
-// ({ files, addFiles }) and the UI needs no changes.
+const MAX_FILES = 3
+
 export function useUploadQueue() {
   const [files, setFiles] = useState([])
-  const nextId = useRef(0)
-  const timers = useRef([])
-
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
-
-  const setStatus = (id, status) =>
-    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)))
+  const [isParsing, setIsParsing] = useState(false)
+  const [selectionError, setSelectionError] = useState('')
 
   const addFiles = useCallback((fileList) => {
-    const items = Array.from(fileList).map((f) => ({
-      id: ++nextId.current,
-      name: f.name,
-      size: f.size,
-      status: 'queued', // queued | parsing | done
+    const incoming = Array.from(fileList || [])
+    const slots = MAX_FILES - files.length
+    if (incoming.length > slots) {
+      setSelectionError(`You can select up to ${MAX_FILES} reports. Remove a file before adding another.`)
+    } else {
+      setSelectionError('')
+    }
+    const accepted = incoming.slice(0, Math.max(0, slots)).map((file, index) => ({
+        id: `${Date.now()}-${files.length + index}-${file.name}`,
+        file,
+        name: file.name,
+        size: file.size,
+        status: 'selected',
+        error: null,
     }))
-    setFiles((prev) => [...prev, ...items])
-    items.forEach((item, i) => {
-      timers.current.push(setTimeout(() => setStatus(item.id, 'parsing'), 400 + i * 200))
-      timers.current.push(setTimeout(() => setStatus(item.id, 'done'), 1600 + i * 200))
-    })
-  }, [])
+    setFiles((current) => [...current, ...accepted])
+  }, [files.length])
 
-  return { files, addFiles }
+  const removeFile = useCallback((id) => {
+    if (!isParsing) setFiles((current) => current.filter((item) => item.id !== id))
+  }, [isParsing])
+
+  const parseSelected = useCallback(async (projectId = null) => {
+    const selected = files.filter((item) => item.status === 'selected')
+    if (isParsing || selected.length === 0) return
+    setSelectionError('')
+    setIsParsing(true)
+    const selectedIds = new Set(selected.map((item) => item.id))
+    setFiles((current) => current.map((item) => selectedIds.has(item.id)
+      ? { ...item, status: 'parsing', error: null }
+      : item))
+    try {
+      const result = await uploadReportFiles(selected.map((item) => item.file), projectId)
+      const reports = result.reports || []
+      const firstCompleted = reports.find((report) => report?.status === 'completed')
+      const firstSaved = reports.find((report) => report?.id)
+      if (firstSaved) {
+        window.dispatchEvent(new CustomEvent('verisight:reports-updated', {
+          detail: {
+            projectId: firstCompleted?.project_id || firstSaved.project_id || null,
+            runId: firstCompleted?.run_id || firstSaved.run_id || null,
+          },
+        }))
+      }
+      setFiles((current) => current.map((item) => {
+        if (!selectedIds.has(item.id)) return item
+        const report = reports[selected.findIndex((candidate) => candidate.id === item.id)]
+        return {
+          ...item,
+          status: report?.status === 'completed' ? 'completed' : 'failed',
+          error: report?.error || (report ? null : 'The API did not return a result for this file.'),
+          reportId: report?.id,
+        }
+      }))
+    } catch (error) {
+      setFiles((current) => current.map((item) => selectedIds.has(item.id) ? ({
+        ...item,
+        status: 'failed',
+        error: error.message || 'The report could not be submitted.',
+      }) : item))
+    } finally {
+      setIsParsing(false)
+    }
+  }, [files, isParsing])
+
+  return { files, addFiles, removeFile, parseSelected, isParsing, selectionError }
 }
